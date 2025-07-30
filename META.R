@@ -6,7 +6,14 @@
 # Date: 2025/07/30
 ###
 
+### Install packages =======================================
 
+# Change to true, if you want to install the packages
+install <- FALSE
+
+if (install) {
+  install.packages(c("survey", "tidyverse", "haven", "lubridate"))
+}
 
 ### Create the folder structure ============================
 
