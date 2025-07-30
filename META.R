@@ -12,7 +12,7 @@
 install <- FALSE
 
 if (install) {
-  install.packages(c("survey", "tidyverse", "haven", "lubridate"))
+  install.packages(c("survey", "tidyverse", "haven", "lubridate", "broom", "stargazer"))
 }
 
 ### Create the folder structure ============================
@@ -23,7 +23,7 @@ lapply(folders, FUN=function(folder) if(!dir.exists(folder)) dir.create(folder))
 
 ### Run the Code files ====================================
 
-
+lapply(list.files(path="code", pattern="^[0-9]", full.names=T), source)
 
 
 ### END ###################################################

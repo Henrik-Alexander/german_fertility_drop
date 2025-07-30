@@ -130,7 +130,7 @@ w13 <- anchor12_14[[1]]
 
 # Create a vector with the variables
 basic_vars <- c("id", "wave", "inty", "intm", "age", "sex_gen")
-analytical_vars <- c("nkidsbio", "frt26", "isced", "hhincnet",
+analytical_vars <- c("nkidsbio", "frt5", "isced", "hhincnet",
                      "isei", "hlt1", "frt1", "relstat", "ethni",
                      "cob",  "sat1i1", "sex8", "sex3", "sex5", 
                      "per2i3", "frt3", "job3")
@@ -149,6 +149,12 @@ df <- bind_rows(w14, w13)
 # Create the interview date
 df$int_date <- as.Date(paste(df$inty, df$intm, "01", sep="-"))
 
+
+
+# Clean the intended fertility
+df$unclear_fertility_intention <- ifelse(df$frt5==-1, 1, 0)
+
+
 # Create the missing variables
 df[df < 0] <- NA
 
@@ -160,10 +166,10 @@ df[df < 0] <- NA
 
 # Education
 df$education <- factor(df$isced, labels = c("0 currently enrolled", "1 no degree (1b)", 
-                            "2 lower secondary education (2b)", "3 lower secondary education (2a)", 
-                            "4 upper secondary education vocational (3b)", "5 upper secondary education general (3a)",
-                            "6 post-secondary non tertiary education general (4a)", "7 first stage of tertiary education (5)",
-                            "8 second stage of tertiary education (6)"), ordered=TRUE)
+                                            "2 lower secondary education (2b)", "3 lower secondary education (2a)", 
+                                            "4 upper secondary education vocational (3b)", "5 upper secondary education general (3a)",
+                                            "6 post-secondary non tertiary education general (4a)", "7 first stage of tertiary education (5)",
+                                            "8 second stage of tertiary education (6)"), ordered=TRUE)
 
 
 # Household Income
@@ -236,20 +242,17 @@ df$conception <- df$sex5
 
 ## Create the outcome variables ------------------------
 
-# Create a parity variable
+# Create a parity variable which is the number of biological children
 df$parity <- df$nkidsbio
 
-# Clean the intended fertility
-df$unclear_fertility_intention <- ifelse(df$frt26%in% c(5, 6), 1, 0)
-
 # Create the intended fertility size
-df$intended_parity <- ifelse(df$unclear_fertility_intention==1, NA, ifelse(df$frt26==7, 0, df$frt26))
+df$intended_parity <- df$frt5
 
 # Create number of additional intended children
-df$intend_more_children <- df$intended_parity - df$nkidsbio 
+df$intend_more_children <- df$intended_parity - df$parity 
 
 # Achieved intended parity
-df$reached_intended_parity <- ifelse(df$intended_parity==0, 1, 0)
+df$reached_intended_parity <- ifelse(df$intend_more_children>1, 1, 0)
 
 # Trying to conceive since the last interview
 df$trying <- create_dummy(df$frt3)
@@ -258,7 +261,7 @@ df$trying <- create_dummy(df$frt3)
 df <- df %>% 
   arrange(id, wave) %>% 
   group_by(id) %>% 
-  mutate(birth = ifelse(conception==1|lag(parity) < parity, 1, 0))
+  mutate(birth = ifelse(conception==1|lag(parity) < parity|lead(parity)>parity, 1, 0))
 
 # Create an indicator for childless or mother
 df$childless <- ifelse(df$parity==0, 1, 0)
@@ -273,7 +276,7 @@ df <- df %>%
 ### Select the important variables ======================
 
 # Create the proportions for wave 14 for the childless
-categorical_vars <- c("ethnicity", "education", "foreign_born", "social_ladder", "relationship", "depression", "health", "fecundity", "hhinc_decile")
+categorical_vars <- c("ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", "depression", "health", "fecundity", "hhinc_decile")
 continuous_vars <- c("intended_parity", "parity", "age")
 outcome_vars <- c("conception", "intend_more_children", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
 vars <- mget(ls(pattern="vars$"))
@@ -283,8 +286,7 @@ df <- df[, c("id", "sex_gen", "wave", vars$categorical_vars, vars$outcome_vars, 
 
 
 # Remove missings
-df <- df[apply(df[, vars$outcome_vars], 1, function(x) any(is.na(x))), ]
-
+df <- df[!apply(df[, c("unclear_fertility_intention", "parity")], 1, function(x) any(is.na(x))), ]
 
 # SAve the data
 save(df, file="data/analysis_data.Rda")
