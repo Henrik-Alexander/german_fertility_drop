@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Exlude directories
+raw/
+
+
+
+# Exclude file types
+*.csv
+*.xlsx
+*.Rda
+*.html
