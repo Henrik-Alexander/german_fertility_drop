@@ -43,14 +43,19 @@ ggplot(data=subset(df, sex_gen==2&wave==13&age>30), aes(x=factor(reached_intende
 
 ### Delayed childbearing intentions at Wave 13 ====
 
-#
+# Modelling:
+# Make ordered to factor variables
+df <- mutate(df, across(where(is.ordered), ~factor(.x, ordered=F)))
+
+
+# Create the childbearing intentions
 df$delayed_childbearing_intention <- ifelse(df$reached_intended_parity==0, 1, 0)
 df$parity_truncated <- factor(ifelse(df$parity>3, 3, df$parity))
 
 # Odds ratios from logistic regression models
 # predicting delayed childbearing intentions at Wave 13 by motherhood status at Wave 13
 model <- as.formula(delayed_childbearing_intention~parity_truncated+education+hhinc_decile+social_ladder+desired_education+fecundity+health+depression+relationship+foreign_born+ethnicity)
-mod1 <- glm(model, data=mutate(df, across(where(is.ordered), ~factor(.x, ordered=F))), family="binomial")
+mod1 <- glm(model, data=df, family="binomial")
 
 # Create a model summary
 mod_table <- tidy(mod1, conf.int = T, exponentiate=T)

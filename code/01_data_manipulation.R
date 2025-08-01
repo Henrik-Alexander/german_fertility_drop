@@ -112,28 +112,41 @@ biopart <- biopart[, c("id", "partindex", "relbeg", "relend", "cohbeg", "cohend"
 
 ## 1.2 Load the Anchor-data ======================================
 
+# Create a vector with the variables
+basic_vars <- c("id", "wave", "inty", "intm", "age","cohort", "sex_gen")
+analytical_vars <- c("nkidsbio", "frt5", "frt7", "isced", "hhincnet",
+                     "isei", "hlt1", "frt1", "relstat", "ethni",
+                     "cob", paste0("sat1i", c(1, 4)),
+                     # "sex8", "per2i3", # This does not exist in the first 2 waves of Pairfam
+                     "sex3", "sex5", "frt3", "job3")
 
 # Load the anchor data for waves 12 to 14
-anchor12_14 <- lapply(13:14, FUN=function(nr) {
+anchor1_2 <- lapply(3:4, FUN=function(nr) {
+  
+  anchor_files <- list.files(file.path(path_pairfam, "DATA", "Stata"), pattern=paste0("anchor", nr, "(_DD)?.dta$"), full.names=T)
+  anchor_files <- lapply(anchor_files, read_dta)
+  anchor_files <- bind_rows(anchor_files)
+  anchor_files <- anchor_files[, c(basic_vars, analytical_vars)]
+  
+  return(anchor_files)
+  
+})
+
+# Load the anchor data for waves 12 to 14
+anchor13_14 <- lapply(13:14, FUN=function(nr) {
   
   anchor_files <- list.files(file.path(path_pairfam, "DATA", "Stata"), pattern=paste0("anchor", nr), full.names=T)
   anchor_files <- lapply(anchor_files, read_dta)
   anchor_files <- bind_rows(anchor_files)
+  anchor_files <- anchor_files[, c(basic_vars, analytical_vars)]
   
   return(anchor_files)
   
 })
 
 # Extract the data
-w14 <- anchor12_14[[2]]
-w13 <- anchor12_14[[1]]
-
-# Create a vector with the variables
-basic_vars <- c("id", "wave", "inty", "intm", "age", "sex_gen")
-analytical_vars <- c("nkidsbio", "frt5", "isced", "hhincnet",
-                     "isei", "hlt1", "frt1", "relstat", "ethni",
-                     "cob",  "sat1i1", "sex8", "sex3", "sex5", 
-                     "per2i3", "frt3", "job3")
+w14 <- anchor13_14[[2]]
+w13 <- anchor13_14[[1]]
 
 
 # Select the variables
@@ -144,12 +157,10 @@ rm(analytical_vars, basic_vars, remove_vars)
 ### Data manipulation =====================================
 
 # Create interview data
-df <- bind_rows(w14, w13)
+df <- bind_rows(w14, w13, anchor1_2[[1]], anchor1_2[[2]])
 
 # Create the interview date
 df$int_date <- as.Date(paste(df$inty, df$intm, "01", sep="-"))
-
-
 
 # Clean the intended fertility
 df$unclear_fertility_intention <- ifelse(df$frt5==-1, 1, 0)
@@ -159,53 +170,16 @@ df$unclear_fertility_intention <- ifelse(df$frt5==-1, 1, 0)
 df[df < 0] <- NA
 
 
-## Create the predictor variable ----------------------
-
-
-## Socio-economic variables --------------------
-
-# Education
-df$education <- factor(df$isced, labels = c("0 currently enrolled", "1 no degree (1b)", 
-                                            "2 lower secondary education (2b)", "3 lower secondary education (2a)", 
-                                            "4 upper secondary education vocational (3b)", "5 upper secondary education general (3a)",
-                                            "6 post-secondary non tertiary education general (4a)", "7 first stage of tertiary education (5)",
-                                            "8 second stage of tertiary education (6)"), ordered=TRUE)
-
-
-# Household Income
-df$hhinc_decile <- cut(df$hhincnet, quantile(df$hhincnet, probs=seq(0, 1, by=0.1), na.rm=T), labels= paste(1:10, "decile"), include.lowest = T, ordered_result = TRUE)
-
-# Position on social ladder
-df$social_ladder <- cut(df$isei, breaks=seq(0, 100, by=10), labels=1:10, include.lowest = T, ordered_result = TRUE)
-
-# Do you have a fixed-term work contract? (missings=7k)
-df$tenure_job <- create_dummy(df$job3)
-
-
-## Value expressions ---------------------
-
-# Importance of religion
-
-
-# Political orientation
-
-## Health variables ---------------------
-
-
-# Self-rated health
-df$health <- factor(df$hlt1, labels=c("Poor", "Not well", "Alright", "Good", "Very good"), ordered=TRUE)
-
-# Self-rated fecundity
-df$fecundity <- factor(df$frt1, labels=c("Defintely", "Likely yes", "Likely no", "Impossible"), ordered=TRUE)
-
-# Depression
-df$depression <- factor(df$per2i3, labels = c("Almost never", "Sometimes", "Often", "Almost always"), ordered=TRUE)
-
-# Desired level of education
-df$desired_education <- cut(df$sat1i1, breaks=seq(0, 10, by=2), labels=1:5, include.lowest=T, ordered_result = T)
-
+## Create the predictor variable ========================
 
 ## Demographic variables ---------------
+
+# Create the age group
+df$age_group <- cut(df$age, breaks=c(15, 25, 35, 45, 55), labels=c("15-25", "25-35", "35-45", "45-55"))
+
+# Cohort
+df$cohort <- factor(df$cohort, labels=c("1971-73", "1981-83", "1991-93", "2001-03"))
+
 
 
 # Relationship status
@@ -234,13 +208,64 @@ hist(df$age)
 
 
 # Frequency of sexual intercourse
-df$freq_coitus <- df$sex8
+#df$freq_coitus <- df$sex8
 
 # Conception or pregnancy
 df$conception <- df$sex5
 
 
+
+### Socio-economic variables --------------------
+
+# Education
+df$education <- factor(df$isced, labels = c("0 currently enrolled", "1 no degree (1b)", 
+                                            "2 lower secondary education (2b)", "3 lower secondary education (2a)", 
+                                            "4 upper secondary education vocational (3b)", "5 upper secondary education general (3a)",
+                                            "6 post-secondary non tertiary education general (4a)", "7 first stage of tertiary education (5)",
+                                            "8 second stage of tertiary education (6)"), ordered=TRUE)
+
+
+# Household Income
+df$hhinc_decile <- cut(df$hhincnet, quantile(df$hhincnet, probs=seq(0, 1, by=0.1), na.rm=T), labels= paste(1:10, "decile"), include.lowest = T, ordered_result = TRUE)
+
+# Position on social ladder
+df$social_ladder <- cut(df$isei, breaks=seq(0, 100, by=10), labels=1:10, include.lowest = T, ordered_result = TRUE)
+
+# Do you have a fixed-term work contract? (missings=7k)
+df$tenure_job <- create_dummy(df$job3)
+
+
+
+
+###  Life goals and domains ==============
+
+
+
+
+
+### Health variables ---------------------
+
+
+# Self-rated health
+df$health <- factor(df$hlt1, labels=c("Poor", "Not well", "Alright", "Good", "Very good"), ordered=TRUE)
+
+# Self-rated fecundity
+df$fecundity <- factor(df$frt1, labels=c("Defintely", "Likely yes", "Likely no", "Impossible"), ordered=TRUE)
+
+# Depression
+#df$depression <- factor(df$per2i3, labels = c("Almost never", "Sometimes", "Often", "Almost always"), ordered=TRUE)
+
+# Desired level of education
+df$desired_education <- cut(df$sat1i1, breaks=seq(0, 10, by=2), labels=1:5, include.lowest=T, ordered_result = T)
+
+
+
+
 ## Create the outcome variables ------------------------
+
+# Short term childbearing intentions
+df$intend_chilbirth <- NA
+df$intend_childbirth <- factor(df$frt7, labels= c("1 Defintely yes", "2 Probably yes", "3 Probably not", "4 Definetely not", "No thoughs"))
 
 # Create a parity variable which is the number of biological children
 df$parity <- df$nkidsbio
@@ -276,17 +301,25 @@ df <- df %>%
 ### Select the important variables ======================
 
 # Create the proportions for wave 14 for the childless
-categorical_vars <- c("ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", "depression", "health", "fecundity", "hhinc_decile")
+categorical_vars <- c("cohort", "ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", #"depression", 
+                      "health", "age_group" , "fecundity", "hhinc_decile")
 continuous_vars <- c("intended_parity", "parity", "age")
-outcome_vars <- c("conception", "intend_more_children", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
+outcome_vars <- c("conception", "intend_more_children", "intend_childbirth", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
 vars <- mget(ls(pattern="vars$"))
 
 # Select the variables
-df <- df[, c("id", "sex_gen", "wave", vars$categorical_vars, vars$outcome_vars, vars$continuous_vars)]
+df <- df[, c("id", "sex_gen", "wave", "int_date", "interview_gap", vars$categorical_vars, vars$outcome_vars, vars$continuous_vars)]
+
+### Missing cases ====================================
 
 
-# Remove missings
+
+# Find missing cases
+missing_distribution <- apply(df, 2, function(x) sum(is.na(x)))
+
+# Remove the missings
 df <- df[!apply(df[, c("unclear_fertility_intention", "parity")], 1, function(x) any(is.na(x))), ]
+
 
 # SAve the data
 save(df, file="data/analysis_data.Rda")

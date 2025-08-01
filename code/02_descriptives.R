@@ -10,6 +10,7 @@ rm(list = ls()); gc(TRUE)
 
 library(tidyverse)
 library(survey)
+library(haven)
 
 # Load the functions
 source("code/functions.R")
@@ -37,6 +38,36 @@ for (sex in c(1,2)) {
 
 
 ### Univariate statistics =====================
+
+# Interview timing
+ggplot(df, aes(x=int_date, fill=as.factor(wave))) +
+  geom_histogram() +
+  scale_x_date(date_breaks="1 month") +
+  facet_wrap(~wave, scales="free_x") +
+  guides(fill="none")
+
+# Plot the interview gap
+ggplot(df, aes(x=interview_gap, filll=as.factor(wave))) +
+  geom_histogram() +
+  facet_wrap(~ wave, scales="free_x")
+
+
+# Plot the age groups
+ggplot(df, aes(x=age, fill=as.factor(cohort))) +
+  geom_histogram() +
+  facet_wrap( ~ wave, ncol=1) +
+  scale_x_continuous(n.breaks=40) +
+  scale_fill_viridis_d("Cohort") +
+  guides(fill=guide_legend(position="bottom"))
+
+# Plot the distribution
+ggplot(df, aes(x=wave, y=age, group=interaction(cohort, wave), colour=cohort)) +
+  geom_abline(slope=1, intercept=0:50, colour="lightgrey", linetype="dotted") +
+  geom_jitter(size=0.1, alpha=0.1) +
+  geom_boxplot(linewidth=1.3) +
+  scale_x_continuous("Wave", n.breaks=12, sec.axis = sec_axis(~ ., breaks=c(3, 4, 13, 14), labels = c("2010-11", "2012-13", "2020-21", "2021-22"))) +
+  scale_y_continuous("Age", n.breaks=20) +
+  guides(colour=guide_legend(position="bottom"))
 
 # Create the proportions
 create_proportions <- function(variable, data) {
@@ -74,6 +105,27 @@ means <- merge(means_mothers, means_childless, by=c("variable", "values"), suffi
 
 # Create the final data
 bind_rows(props, means)
+
+
+## Who intends to have a child
+df %>% 
+  filter(wave%in%c(3, 13) & age < 44) %>% 
+  group_by(wave, age_group) %>% 
+  mutate(total = n()) %>% 
+  group_by(wave, age_group, intend_childbirth) %>% 
+  summarise(share = n()/unique(total), count=n(), .groups="drop") %>% 
+  ggplot(aes(x=intend_childbirth, y=share, group=wave, fill=factor(wave))) +
+  geom_col(position=position_dodge()) +
+  facet_wrap(~ age_group, ncol=1) +
+  geom_text(aes(label=round(100*share, 2), y=0.02), position=position_dodge(width=1), colour="white", size=5, family="serif") +
+  scale_y_continuous(labels=scales::percent, n.breaks=10, expand=c(0, 0), limits=c(0, 0.8)) +
+  scale_x_discrete("Intend to have a child in the next 2 years") +
+  scale_fill_viridis_d("Wave") +
+  guides(fill=guide_legend(position="bottom")) +
+  theme(
+    panel.grid.major.y=element_line(colour="black", linetype="dotted")
+  )
+ggsave(filename="figures/plot_the_fertility_intentions.pdf", height=35, width=25, unit="cm")
 
 
 ### Correlations ==============================
