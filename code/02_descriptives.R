@@ -59,6 +59,7 @@ ggplot(df, aes(x=age, fill=as.factor(cohort))) +
   scale_x_continuous(n.breaks=40) +
   scale_fill_viridis_d("Cohort") +
   guides(fill=guide_legend(position="bottom"))
+ggplot(filename="figures/age_distribution.pdf", height=15, width=20, unit="cm")
 
 # Plot the distribution
 ggplot(df, aes(x=wave, y=age, group=interaction(cohort, wave), colour=cohort)) +
@@ -68,6 +69,7 @@ ggplot(df, aes(x=wave, y=age, group=interaction(cohort, wave), colour=cohort)) +
   scale_x_continuous("Wave", n.breaks=12, sec.axis = sec_axis(~ ., breaks=c(3, 4, 13, 14), labels = c("2010-11", "2012-13", "2020-21", "2021-22"))) +
   scale_y_continuous("Age", n.breaks=20) +
   guides(colour=guide_legend(position="bottom"))
+ggsave(filename="figures/data_structure.pdf", height=15, width=25, unit="cm")
 
 # Create the proportions
 create_proportions <- function(variable, data) {
@@ -120,7 +122,7 @@ df %>%
   geom_text(aes(label=round(100*share, 2), y=0.02), position=position_dodge(width=1), colour="white", size=5, family="serif") +
   scale_y_continuous(labels=scales::percent, n.breaks=10, expand=c(0, 0), limits=c(0, 0.8)) +
   scale_x_discrete("Intend to have a child in the next 2 years") +
-  scale_fill_viridis_d("Wave") +
+  scale_fill_viridis_d("Wave", option="D") +
   guides(fill=guide_legend(position="bottom")) +
   theme(
     panel.grid.major.y=element_line(colour="black", linetype="dotted")
@@ -134,7 +136,7 @@ ggsave(filename="figures/plot_the_fertility_intentions.pdf", height=35, width=25
 ### Figures ===================================
 
 # Plot the figure
-ggplot(data=w13f, aes(x=education, y=..prop.., group=childless, fill=as.factor(childless))) +
+ggplot(data=subset(df, age>30), aes(x=education, y=..prop.., group=childless, fill=as.factor(childless))) +
   geom_bar(position=position_dodge()) +
   coord_flip() +
   scale_x_discrete("Proportion", expand=c(0, 0)) +
@@ -145,5 +147,5 @@ ggplot(data=w13f, aes(x=education, y=..prop.., group=childless, fill=as.factor(c
     axis.line.y=element_blank(),
     legend.position.inside=c(0.8, 0.8)
   )
-
+ggplot(filename="figures/childlessness.pdf", height=15, width=20, unit="cm")
 ### END #######################################

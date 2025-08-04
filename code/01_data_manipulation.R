@@ -6,8 +6,6 @@
 # Date: 2025/07/30
 ###
 
-
-
 ## Structure:
 # 1. bio child
 # 2. bioact
@@ -116,9 +114,9 @@ biopart <- biopart[, c("id", "partindex", "relbeg", "relend", "cohbeg", "cohend"
 basic_vars <- c("id", "wave", "inty", "intm", "age","cohort", "sex_gen")
 analytical_vars <- c("nkidsbio", "frt5", "frt7", "isced", "hhincnet",
                      "isei", "hlt1", "frt1", "relstat", "ethni",
-                     "cob", paste0("sat1i", c(1, 4)),
+                     "cob", paste0("sat1i", c(1, 4)), "f1", "frt27", "frt28",
                      # "sex8", "per2i3", # This does not exist in the first 2 waves of Pairfam
-                     "sex3", "sex5", "frt3", "job3")
+                     "sex3", "sex4", "sex5", "frt3", "job3")
 
 # Load the anchor data for waves 12 to 14
 anchor1_2 <- lapply(3:4, FUN=function(nr) {
@@ -126,6 +124,11 @@ anchor1_2 <- lapply(3:4, FUN=function(nr) {
   anchor_files <- list.files(file.path(path_pairfam, "DATA", "Stata"), pattern=paste0("anchor", nr, "(_DD)?.dta$"), full.names=T)
   anchor_files <- lapply(anchor_files, read_dta)
   anchor_files <- bind_rows(anchor_files)
+  
+  # Create the helper variable: f1 <- sex3==1|sex4==1
+  anchor_files$f1 <- ifelse(anchor_files$sex3==1|anchor_files$sex4==1, 1, 0)
+  
+  
   anchor_files <- anchor_files[, c(basic_vars, analytical_vars)]
   
   return(anchor_files)
@@ -144,20 +147,14 @@ anchor13_14 <- lapply(13:14, FUN=function(nr) {
   
 })
 
-# Extract the data
-w14 <- anchor13_14[[2]]
-w13 <- anchor13_14[[1]]
 
-
-# Select the variables
-w14 <- w14[, c(basic_vars, analytical_vars)]
-w13 <- w13[, c(basic_vars, analytical_vars)]
+# Remove the filtering variables
 rm(analytical_vars, basic_vars, remove_vars)
 
 ### Data manipulation =====================================
 
 # Create interview data
-df <- bind_rows(w14, w13, anchor1_2[[1]], anchor1_2[[2]])
+df <- bind_rows(anchor13_14[[1]], anchor13_14[[2]], anchor1_2[[1]], anchor1_2[[2]])
 
 # Create the interview date
 df$int_date <- as.Date(paste(df$inty, df$intm, "01", sep="-"))
@@ -165,10 +162,8 @@ df$int_date <- as.Date(paste(df$inty, df$intm, "01", sep="-"))
 # Clean the intended fertility
 df$unclear_fertility_intention <- ifelse(df$frt5==-1, 1, 0)
 
-
 # Create the missing variables
 df[df < 0] <- NA
-
 
 ## Create the predictor variable ========================
 
@@ -179,8 +174,6 @@ df$age_group <- cut(df$age, breaks=c(15, 25, 35, 45, 55), labels=c("15-25", "25-
 
 # Cohort
 df$cohort <- factor(df$cohort, labels=c("1971-73", "1981-83", "1991-93", "2001-03"))
-
-
 
 # Relationship status
 df$relationship <- NA
@@ -213,7 +206,8 @@ hist(df$age)
 # Conception or pregnancy
 df$conception <- df$sex5
 
-
+# Expecting a child
+df$expecting_child <- df$f1
 
 ### Socio-economic variables --------------------
 
@@ -234,14 +228,7 @@ df$social_ladder <- cut(df$isei, breaks=seq(0, 100, by=10), labels=1:10, include
 # Do you have a fixed-term work contract? (missings=7k)
 df$tenure_job <- create_dummy(df$job3)
 
-
-
-
 ###  Life goals and domains ==============
-
-
-
-
 
 ### Health variables ---------------------
 
@@ -258,13 +245,11 @@ df$fecundity <- factor(df$frt1, labels=c("Defintely", "Likely yes", "Likely no",
 # Desired level of education
 df$desired_education <- cut(df$sat1i1, breaks=seq(0, 10, by=2), labels=1:5, include.lowest=T, ordered_result = T)
 
-
-
-
 ## Create the outcome variables ------------------------
 
 # Short term childbearing intentions
 df$intend_chilbirth <- NA
+df$frt7[df$frt27==2] <- 4
 df$intend_childbirth <- factor(df$frt7, labels= c("1 Defintely yes", "2 Probably yes", "3 Probably not", "4 Definetely not", "No thoughs"))
 
 # Create a parity variable which is the number of biological children
@@ -304,7 +289,7 @@ df <- df %>%
 categorical_vars <- c("cohort", "ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", #"depression", 
                       "health", "age_group" , "fecundity", "hhinc_decile")
 continuous_vars <- c("intended_parity", "parity", "age")
-outcome_vars <- c("conception", "intend_more_children", "intend_childbirth", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
+outcome_vars <- c("conception", "expecting_child", "intend_more_children", "intend_childbirth", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
 vars <- mget(ls(pattern="vars$"))
 
 # Select the variables
