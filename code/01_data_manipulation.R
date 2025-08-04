@@ -112,11 +112,17 @@ biopart <- biopart[, c("id", "partindex", "relbeg", "relend", "cohbeg", "cohend"
 
 # Create a vector with the variables
 basic_vars <- c("id", "wave", "inty", "intm", "age","cohort", "sex_gen")
-analytical_vars <- c("nkidsbio", "frt5", "frt7", "isced", "hhincnet",
-                     "isei", "hlt1", "frt1", "relstat", "ethni",
-                     "cob", paste0("sat1i", c(1, 4)), "f1", "frt27", "frt28",
+analytical_vars <- c("nkidsbio", "isced", "hhincnet",
+                     "isei", "hlt1", 
+                     # Fertility questionaires
+                     "frt1", "frt2", "frt3", "frt5", "frt7","frt27", "frt28",
+                     "relstat", "ethni",
+                     "cob", paste0("sat1i", c(1, 4)), "f1", "f2", 
                      # "sex8", "per2i3", # This does not exist in the first 2 waves of Pairfam
-                     "sex3", "sex4", "sex5", "frt3", "job3")
+                     "sex3", "sex4", "sex5", "job3", #"hlt18",
+                     # Contraceptive methods
+                     paste0("sex6i", 1:2), paste0("sex6i", 7:8)
+                     )
 
 # Load the anchor data for waves 12 to 14
 anchor1_2 <- lapply(3:4, FUN=function(nr) {
@@ -125,9 +131,12 @@ anchor1_2 <- lapply(3:4, FUN=function(nr) {
   anchor_files <- lapply(anchor_files, read_dta)
   anchor_files <- bind_rows(anchor_files)
   
-  # Create the helper variable: f1 <- sex3==1|sex4==1
+  # Create the helper variable: f1 (no fertility intentions) <- sex3==1|sex4==1
   anchor_files$f1 <- ifelse(anchor_files$sex3==1|anchor_files$sex4==1, 1, 0)
   
+  # Create the helper column f2 (infertility or partner infertility)
+  fertile_couple <- (anchor_files$frt1 %in% c(3, 4, -2) | anchor_files$frt2 %in% c(3, 4, -2) | anchor_files$sex6i1==1 | anchor_files$sex6i2==1 | anchor_files$sex6i7==1 | anchor_files$sex6i8==1)
+  anchor_files$f2 <- ifelse(fertile_couple, 0, 1)
   
   anchor_files <- anchor_files[, c(basic_vars, analytical_vars)]
   
@@ -206,8 +215,6 @@ hist(df$age)
 # Conception or pregnancy
 df$conception <- df$sex5
 
-# Expecting a child
-df$expecting_child <- df$f1
 
 ### Socio-economic variables --------------------
 
@@ -246,6 +253,12 @@ df$fecundity <- factor(df$frt1, labels=c("Defintely", "Likely yes", "Likely no",
 df$desired_education <- cut(df$sat1i1, breaks=seq(0, 10, by=2), labels=1:5, include.lowest=T, ordered_result = T)
 
 ## Create the outcome variables ------------------------
+
+# Expecting a child
+df$expecting_child <- factor(df$f1==1, label=c("no", "yes"))
+
+# Infertile couple
+df$fertile_couple <- factor(df$f2, label= c("infertile", "fertile"))
 
 # Short term childbearing intentions
 df$intend_chilbirth <- NA
@@ -289,7 +302,7 @@ df <- df %>%
 categorical_vars <- c("cohort", "ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", #"depression", 
                       "health", "age_group" , "fecundity", "hhinc_decile")
 continuous_vars <- c("intended_parity", "parity", "age")
-outcome_vars <- c("conception", "expecting_child", "intend_more_children", "intend_childbirth", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
+outcome_vars <- c("conception", "expecting_child", "fertile_couple", "intend_more_children", "intend_childbirth", "reached_intended_parity", "trying", "birth", "childless", "unclear_fertility_intention")
 vars <- mget(ls(pattern="vars$"))
 
 # Select the variables
