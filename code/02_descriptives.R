@@ -59,7 +59,7 @@ ggplot(df, aes(x=age, fill=as.factor(cohort))) +
   scale_x_continuous(n.breaks=40) +
   scale_fill_viridis_d("Cohort") +
   guides(fill=guide_legend(position="bottom"))
-ggplot(filename="figures/age_distribution.pdf", height=15, width=20, unit="cm")
+ggsave(filename="figures/age_distribution.pdf", height=25, width=20, unit="cm")
 
 # Plot the distribution
 ggplot(df, aes(x=wave, y=age, group=interaction(cohort, wave), colour=cohort)) +
@@ -111,7 +111,7 @@ bind_rows(props, means)
 
 ## Who intends to have a child
 df %>% 
-  filter(wave%in%c(3, 13) & age < 44) %>% 
+  filter(wave%in%c(3, 13) & age < 44 & age>25) %>% 
   group_by(wave, age_group) %>% 
   mutate(total = n()) %>% 
   group_by(wave, age_group, intend_childbirth) %>% 
@@ -119,8 +119,8 @@ df %>%
   ggplot(aes(x=intend_childbirth, y=share, group=wave, fill=factor(wave))) +
   geom_col(position=position_dodge()) +
   facet_wrap(~ age_group, ncol=1) +
-  geom_text(aes(label=round(100*share, 2), y=0.02), position=position_dodge(width=1), colour="white", size=5, family="serif") +
-  scale_y_continuous(labels=scales::percent, n.breaks=10, expand=c(0, 0), limits=c(0, 0.8)) +
+  geom_text(aes(label=paste0(round(100*share, 1), "%"), y=share+0.02), position=position_dodge(width=1), colour="black", size=5, family="serif") +
+  scale_y_continuous(labels=scales::percent, n.breaks=10, expand=c(0, 0), limits=c(0, 0.71)) +
   scale_x_discrete("Intend to have a child in the next 2 years") +
   scale_fill_viridis_d("Wave", option="D") +
   guides(fill=guide_legend(position="bottom")) +
