@@ -13,4 +13,7 @@ library(ggplot2)
 theme_set(theme_classic(base_size=14, base_family="serif"))
 
 
-
+theme_update(
+  strip.background = element_rect(colour="white", fill="lightgrey"),
+  strip.text = element_text(face="bold")
+)

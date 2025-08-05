@@ -275,7 +275,7 @@ df <- df %>%
   arrange(id, wave) %>% 
   group_by(id) %>% 
   mutate(conception = ifelse(lead(birth)==1 & wave %in% waves[c(1, 3)], 1, 0),
-         intention_realization= ifelse((conception==1&intend_childbirth%in%c(1,2)) | (conception==1&intend_childbirth%in%c(1,2)), 1, 0))
+         intention_realization= ifelse((conception==1&intend_childbirth%in%c("1 Defintely yes", "2 Probably yes")) | (conception==0&intend_childbirth%in%c("3 Probably not","4 Definetely not", "No thoughs")), 1, 0))
 
 # Missing cases ====================================
 

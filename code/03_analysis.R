@@ -28,6 +28,7 @@ df <- df[df$wave%in%c(3, 13) & df$sex_gen==2 & df$age>22 & df$age<44, ]
 
 ### Intending another birth ===========================
 
+
 # Plot the share of wome, 
 # "Who intends to have a(nother) birth in the prime reproductive years?" by motherhood status
 ggplot(data=subset(df, sex_gen==2&wave%in%c(3, 13)&age>30), aes(x=factor(reached_intended_parity, labels=c("No", "Yes")), y=..prop.., fill=factor(childless), group=childless)) +
@@ -57,7 +58,7 @@ df$parity_truncated <- factor(ifelse(df$parity>3, 3, df$parity))
 
 # Odds ratios from logistic regression models
 # predicting delayed childbearing intentions at Wave 13 by motherhood status at Wave 13
-model <- as.formula(delayed_childbearing_intention~parity_truncated+education+hhinc_decile+social_ladder+economic_hardship+education+desired_education+fecundity+health+relationship+bula+bik)
+model <- as.formula(delayed_childbearing_intention~parity_truncated+education+hhinc_quartile+social_ladder+economic_hardship+education+desired_education+fecundity+health+relationship+bula+factor(bik))
 mod1 <- glm(model, data=df, family="binomial")
 
 # Create a model summary
@@ -68,18 +69,41 @@ stargazer(mod_table, summary=F)
 mod_table$variable <- str_extract(mod_table$term, pattern="^[a-z]+")
 
 # Plot the predictor
-ggplot(data=mod_table, aes(x=fct_reorder(term, term))) +
+ggplot(data=subset(mod_table, !is.na(variable)), aes(x=fct_reorder(term, term))) +
   geom_hline(yintercept=1) +
   geom_linerange(aes(ymin=conf.low, ymax=conf.high)) +
   geom_point(aes(y=estimate)) +
   scale_y_continuous(expand=c(0, 0.1)) +
   coord_flip(ylim=c(0, 5)) +
-  facet_wrap(~ variable, scales="free_y") 
+  facet_wrap(~ variable, scales="free_y")
+
+ggsave("figures/predictors_intend_childbirth.pdf", height=25, width=20, unit="cm")
 
 
 # Predictors of intention realization =================
 
+# Odds ratios from logistic regression models
+# predicting delayed childbearing intentions at Wave 13 by motherhood status at Wave 13
+model <- as.formula(intention_realization~intend_childbirth+parity_truncated+education+hhinc_quartile+social_ladder+economic_hardship+education+desired_education+fecundity+health+relationship+bula+factor(bik))
+mod2 <- glm(model, data=df, family="binomial")
 
+# Create a model summary
+mod_table <- tidy(mod2, conf.int = T, exponentiate=T)
+stargazer(mod_table, summary=F)
+
+# Plot the result
+mod_table$variable <- str_extract(mod_table$term, pattern="^[a-z]+")
+
+# Plot the predictor
+ggplot(data=subset(mod_table, !is.na(variable)), aes(x=fct_reorder(term, term))) +
+  geom_hline(yintercept=1) +
+  geom_linerange(aes(ymin=conf.low, ymax=conf.high)) +
+  geom_point(aes(y=estimate)) +
+  scale_y_continuous(expand=c(0, 0.1)) +
+  coord_flip(ylim=c(0, 5)) +
+  facet_wrap(~ variable, scales="free_y")
+
+ggsave("figures/predictors_realization_intentions.pdf", height=25, width=20, unit="cm")
 
 
 ### END ###############################################
