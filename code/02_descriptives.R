@@ -132,6 +132,26 @@ ggsave(filename="figures/plot_the_fertility_intentions.pdf", height=35, width=25
 
 ### Correlations ==============================
 
+# Relationship between intention and conception
+df %>% 
+  filter(wave%in%c(3, 13) & !is.na(intend_childbirth)) %>% 
+  group_by(intend_childbirth) %>% 
+  mutate(total=n()) %>% 
+  group_by(intend_childbirth, conception) %>% 
+  summarize(share = n()/unique(total)) %>% 
+  filter(conception==1) %>% 
+  ggplot(aes(x=intend_childbirth, y=share, fill=intend_childbirth)) +
+  geom_col() +
+  geom_text(aes(y=share+0.005, label=paste(100*round(share, 2), "%")), family="serif", size=8) +
+  scale_x_discrete("Intend to have a child") +
+  scale_y_continuous("Realized childbirth", labels=scales::percent, expand=c(0, 0), limits=c(0, 0.1), n.breaks=10) +
+  scale_fill_grey() +
+  guides(fill="none") +
+  theme(
+    panel.grid.major.y=element_line(colour="black")
+  )
+ggsave(filename="figures/realized_childbirth.pdf", height=15, width=25, unit="cm")
+
 
 ### Figures ===================================
 
