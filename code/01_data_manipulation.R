@@ -111,18 +111,45 @@ biopart <- biopart[, c("id", "partindex", "relbeg", "relend", "cohbeg", "cohend"
 ## 1.2 Load the Anchor-data ======================================
 
 # Create a vector with the variables
-basic_vars <- c("id", "wave", "inty", "intm", "age","cohort", "sex_gen")
-analytical_vars <- c("nkidsbio", "isced", "hhincnet",
-                     "isei", "hlt1", 
-                     # Fertility questionaires
+basic_vars <- c("id", "demodiff", "wave", "inty", "intm", "age","cohort", "sex_gen")
+analytical_vars <- c("nkidsbio", "homosex",
+                     
+                     # Resource variables
+                     "isced", "hhincnet", "isei", "hlt1",
+                     # Survey weights
+                     "dweight", "d1weight", "d2weight", "d3weight", "cdweight", "cd1weight", "cd2weight", "cd3weight",
+                     
+                     # Settlement structure
+                     "bik", "gkpol", "bula",
+                     # Fertility intentions
+                     
+                     # Financial hardship
+                     paste0("inc27i", 2:3),
+                     # Division of labour
+                     paste0("pa17i", 1:5),
+                     
+                     # Fertility questionnaires
                      "frt1", "frt2", "frt3", "frt5", "frt7","frt27", "frt28",
-                     "relstat", "ethni",
-                     "cob", paste0("sat1i", c(1, 4)), "f1", "f2", 
+                     
+                     # Migration status
+                     "relstat", "ethni", "migstatus", "cob",
+                     
+                     # Satisfaction
+                     paste0("sat1i", c(1:4)),
+                     
+                     # Helper variables: infertility and couple childbirth
+                     "f1", "f2", 
                      # "sex8", "per2i3", # This does not exist in the first 2 waves of Pairfam
-                     "sex3", "sex4", "sex5", "job3", #"hlt18",
+                     paste0("sex", c(3:5, 8)), paste0("job", c(3:4, 7)), #"hlt18",
                      # Contraceptive methods
-                     paste0("sex6i", 1:2), paste0("sex6i", 7:8)
-                     )
+                     paste0("sex6i", 1:11), paste0("sex6i", 7:8)
+)
+
+# Load the variables
+variables <- readxl::read_xlsx("raw/variable_selection.xlsx")
+variables <- variables[ifelse(variables$Column1=="TRUE", TRUE, FALSE), ]
+variables$variables[!(variables %in% c(basic_vars, analytical_vars))]
+
 
 # Load the anchor data for waves 12 to 14
 anchor1_2 <- lapply(3:4, FUN=function(nr) {
@@ -150,6 +177,8 @@ anchor13_14 <- lapply(13:14, FUN=function(nr) {
   anchor_files <- list.files(file.path(path_pairfam, "DATA", "Stata"), pattern=paste0("anchor", nr), full.names=T)
   anchor_files <- lapply(anchor_files, read_dta)
   anchor_files <- bind_rows(anchor_files)
+  
+  # Select the important variables
   anchor_files <- anchor_files[, c(basic_vars, analytical_vars)]
   
   return(anchor_files)
@@ -160,7 +189,7 @@ anchor13_14 <- lapply(13:14, FUN=function(nr) {
 # Remove the filtering variables
 rm(analytical_vars, basic_vars, remove_vars)
 
-### Data manipulation =====================================
+# Data manipulation =====================================
 
 # Create interview data
 df <- bind_rows(anchor13_14[[1]], anchor13_14[[2]], anchor1_2[[1]], anchor1_2[[2]])
@@ -174,9 +203,11 @@ df$unclear_fertility_intention <- ifelse(df$frt5==-1, 1, 0)
 # Create the missing variables
 df[df < 0] <- NA
 
+## Select the survey weights ===========================
+
 ## Create the predictor variable ========================
 
-## Demographic variables ---------------
+### Demographic variables ---------------
 
 # Create the age group
 df$age_group <- cut(df$age, breaks=c(15, 25, 35, 45, 55), labels=c("15-25", "25-35", "35-45", "45-55"))
@@ -184,12 +215,17 @@ df$age_group <- cut(df$age, breaks=c(15, 25, 35, 45, 55), labels=c("15-25", "25-
 # Cohort
 df$cohort <- factor(df$cohort, labels=c("1971-73", "1981-83", "1991-93", "2001-03"))
 
+# Age
+hist(df$age)
+
 # Relationship status
 df$relationship <- NA
 df$relationship[df$relstat %in% c(9, 6, 1)] <- "Single"
 df$relationship[df$relstat %in% c(2, 7, 10)] <- "Dating/in a sexual relationship"
 df$relationship[df$relstat %in% c(3, 8, 11)] <-"Cohabiting"
 df$relationship[df$relstat %in% c(4, 5)] <-"Married"
+
+### Migration status -------------------------
 
 # Ethnicity
 tab(df$ethni)
@@ -199,22 +235,18 @@ df$ethnicity <- factor(df$ethni, labels=c("German native, no migration backgroun
                                           "Turkish background", 
                                           "Other non-German background"),
                        ordered=T)
-
-
 # Foreign born
 tab(df$cob)
 df$foreign_born <- ifelse(df$cob%in%c(1, 2), "native", "foreigner")
 
-# Age
-hist(df$age)
-
+# Migration status
+df$migstatus <- factor(df$migstatus, labels=c("No migration background", "1st generation", "2nd generation"))
 
 # Frequency of sexual intercourse
 #df$freq_coitus <- df$sex8
 
-# Conception or pregnancy
-df$conception <- df$sex5
-
+# Contraception in the last 3 months
+df$contraception <- create_dummy(df$sex5)
 
 ### Socio-economic variables --------------------
 
@@ -234,6 +266,16 @@ df$social_ladder <- cut(df$isei, breaks=seq(0, 100, by=10), labels=1:10, include
 
 # Do you have a fixed-term work contract? (missings=7k)
 df$tenure_job <- create_dummy(df$job3)
+
+# Public sector job
+df$public_sector <- create_dummy(df$job4)
+
+# Number of hours per week
+df$working_hours <- as.numeric(df$job7)
+
+# Economic hardship
+df$economic_hardship <- factor(ifelse(df$inc27i2 %in%c(4, 5) |df$inc27i3 %in% c(4, 5), 1, 0), labels=c("no", "yes"))
+
 
 ###  Life goals and domains ==============
 
@@ -296,7 +338,7 @@ df <- df %>%
   mutate(interview_gap = time_length(max(int_date)-min(int_date), unit="months")) %>% 
   select(-inty, -intm)
 
-### Select the important variables ======================
+# Select the important variables ======================
 
 # Create the proportions for wave 14 for the childless
 categorical_vars <- c("cohort", "ethnicity", "education",  "desired_education", "foreign_born", "social_ladder", "relationship", #"depression", 
@@ -308,7 +350,7 @@ vars <- mget(ls(pattern="vars$"))
 # Select the variables
 df <- df[, c("id", "sex_gen", "wave", "int_date", "interview_gap", vars$categorical_vars, vars$outcome_vars, vars$continuous_vars)]
 
-### Missing cases ====================================
+# Missing cases ====================================
 
 
 
